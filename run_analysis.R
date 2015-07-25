@@ -41,65 +41,27 @@ downloadFile <- function(zipURL, dataDir) {
 # TODO: clean this up.. reads file but
 getDataSetWithin <- function(zipFileName, path) {
         con <- unz(zipFileName, path)
-        data <- read.table(con)
-        close(con)
-        data
+        data <- data.table(read.table(con))
 }
 
-# 0.) Load data sets
-zipFileName <- downloadFile(zipURL, zipFileName)
+# 0.) Load main data set
+zipFileName <- downloadFile(zipURL, "./data/")
 activityLabels <- getDataSetWithin(zipFileName, "UCI HAR Dataset/activity_labels.txt")
-featuresInfo <- getDataSetWithin(zipFileName, "UCI HAR Dataset/features_info.txt")
 features <- getDataSetWithin(zipFileName, "UCI HAR Dataset/features.txt")
-
-subjectTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/subject_train.txt")
-yTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/y_train.txt")
-XTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/_train.txt")
-bodyAccXTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/Inertial Signals/body_acc_x_train.txt")
-bodyAccYTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/Inertial Signals/body_acc_y_train.txt")
-bodyAccZTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/Inertial Signals/body_acc_z_train.txt")
-bodyGyroXTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/Inertial Signals/body_gyro_x_train.txt")
-bodyGyroYTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/Inertial Signals/body_gyro_y_train.txt")
-bodyGyroZTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/Inertial Signals/body_gyro_z_train.txt")
-totalAccXTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/Inertial Signals/total_acc_x_train.txt")
-totalAccYTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/Inertial Signals/total_acc_y_train.txt")
-totalAccZTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/Inertial Signals/total_acc_z_train.txt")
-
-
-
-subjectTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/subject_test.txt")
-yTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/y_test.txt")
-XTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/_test.txt")
-bodyAccXTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/Inertial Signals/body_acc_x_test.txt")
-bodyAccYTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/Inertial Signals/body_acc_y_test.txt")
-bodyAccZTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/Inertial Signals/body_acc_z_test.txt")
-bodyGyroXTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/Inertial Signals/body_gyro_x_test.txt")
-bodyGyroYTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/Inertial Signals/body_gyro_y_test.txt")
-bodyGyroZTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/Inertial Signals/body_gyro_z_test.txt")
-totalAccXTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/Inertial Signals/total_acc_x_test.txt")
-totalAccYTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/Inertial Signals/total_acc_y_test.txt")
-totalAccZTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/Inertial Signals/total_acc_z_test.txt")
-
-
-
-
+setkey(features, V2)
+meanStdFeatures <- features[grep("mean|std", V2),]
+featureNames <- levels(meanStdFeatures[,V2][1])
 
 # 1.) Merge training and test sets to create one data set
 # 2.) Extract only the measurements on the mean and std for each measurement
 # 3.) Uses descriptive activity names to name the activities in the data set
 # 4.) Appropriately label the data set with descriptive variable names
 
-activityLabels <- data.table(read.table("data/UCI HAR Dataset/activity_labels.txt"))
-
-features <- data.table(read.table("data/UCI HAR Dataset/features.txt"))
-setkey(features, V2)
-meanStdFeatures <- features[grep("mean|std", V2),]
-featureNames <- levels(meanStdFeatures[,V2][1])
-
-trainingSet <- data.table(read.table("data/UCI HAR Dataset/train/subject_train.txt"))
+# grab training
+trainingSet <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/subject_train.txt")
 setnames(trainingSet,"user")
-yTrain <- data.table(read.table("data/UCI HAR Dataset/train/y_train.txt"))
-xTrain <- data.table(read.table("data/UCI HAR Dataset/train/X_train.txt"))
+yTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/y_train.txt")
+xTrain <- getDataSetWithin(zipFileName, "UCI HAR Dataset/train/X_train.txt")
 trainingSet[, activity := activityLabels[yTrain[,V1], "V2", with=FALSE]]
 xTrainMeanStd <- xTrain[,meanStdFeatures[,V1], with=FALSE]
 for (i in 1:ncol(xTrainMeanStd)) {
@@ -107,13 +69,12 @@ for (i in 1:ncol(xTrainMeanStd)) {
 }
 
 # now grab test
-testSet <- data.table(read.table("data/UCI HAR Dataset/test/subject_test.txt"))
+testSet <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/subject_test.txt")
 setnames(testSet,"user")
-yTest <- data.table(read.table("data/UCI HAR Dataset/test/y_test.txt"))
-xTest <- data.table(read.table("data/UCI HAR Dataset/test/X_test.txt"))
+yTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/y_test.txt")
+xTest <- getDataSetWithin(zipFileName, "UCI HAR Dataset/test/X_test.txt")
 testSet[, activity := activityLabels[yTest[,V1], "V2", with=FALSE]]
 xTestMeanStd <- xTest[,meanStdFeatures[,V1], with=FALSE]
-
 for (i in 1:ncol(xTestMeanStd)) {
         testSet[, featureNames[meanStdFeatures[,V2][i]] := xTestMeanStd[,i, with=FALSE]]
 }
@@ -124,6 +85,7 @@ for (i in 1:ncol(xTestMeanStd)) {
 trainingSet[, isTraining := TRUE]
 testSet[, isTraining := FALSE]
 
+# mergedSet is really the place to start for further analysis - we can now differentiate between training and test sets.
 mergedSet <- rbind(trainingSet, testSet)
 # clean up names
 names2 <- sapply(names(mergedSet), function(x){gsub("[-()]+", ".",x)})
@@ -137,4 +99,5 @@ aveSet <- mergedSet[, lapply(.SD, mean), by=.(user, activity)]
 # tidy up by dropping the isTraining column which is meaningless when we take the average
 aveSet[, isTraining:=NULL]
  
-write.table(aveSet, file="SamsungGalaxyMeanStdResults.txt" row.names=FALSE)
+# finally write out target file with averages across mean and std fields
+write.table(aveSet, file="SamsungGalaxyMeanStdResults.txt", row.names=FALSE)
